@@ -416,20 +416,14 @@ export async function registerRoutes(
   app.delete("/api/categories/:id", async (req, res) => {
     try {
       const allProducts = await storage.getAllProducts();
-      const activeProducts = allProducts.filter(p => p.categoryId === req.params.id && p.isActive);
       
-      if (activeProducts.length > 0) {
-        return res.status(400).json({ 
-          error: `Nao e possivel excluir categoria com ${activeProducts.length} produto(s) ativo(s) vinculado(s). Desative ou mova os produtos primeiro.` 
-        });
-      }
-      
-      // Delete all inactive products (visible and phantom products)
+      // Delete ALL products linked to this category (regardless of status)
       const allCategoryProducts = allProducts.filter(p => p.categoryId === req.params.id);
       for (const product of allCategoryProducts) {
         await storage.deleteProduct(product.id);
       }
       
+      // Now delete the category itself
       const deleted = await storage.deleteCategory(req.params.id);
       if (!deleted) return res.status(404).json({ error: "Category not found" });
       res.status(204).send();
@@ -1215,7 +1209,7 @@ export async function registerRoutes(
       
       // Categories that are prepared drinks/doses
       const preparedCategoryPatterns = [
-        'copos', 'drinks', 'caipirinhas', 'drinks especiais'
+        'copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'
       ];
       
       // Build a set of category IDs for prepared products
@@ -1274,7 +1268,7 @@ export async function registerRoutes(
       // Categories that should be excluded from stock value calculations
       // These are prepared drinks, doses, and mixed drinks
       const excludedCategoryPatterns = [
-        'copos', 'drinks', 'caipirinhas', 'drinks especiais'
+        'copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'
       ];
       
       // Build a set of category IDs to exclude
@@ -1362,7 +1356,7 @@ export async function registerRoutes(
       // Categories that should be excluded from shopping list
       // These are prepared drinks, doses, and mixed drinks - not items you purchase
       const excludedCategoryPatterns = [
-        'copos', 'drinks', 'caipirinhas', 'drinks especiais'
+        'copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'
       ];
       
       // Build a set of category IDs to exclude
@@ -1405,6 +1399,71 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error getting low stock suggestions:", error);
       res.status(500).json({ error: "Failed to get low stock suggestions" });
+    }
+  });
+
+  // Shopping List with Category Selection - Allows filtering by selected categories
+  // POST endpoint that accepts categoryIds and threshold to generate custom shopping list
+  app.post("/api/stock/shopping-list", async (req, res) => {
+    try {
+      const { categoryIds = [], threshold = 10 } = req.body;
+      const allProducts = await storage.getProducts();
+      const categories = await storage.getCategories();
+      
+      const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+      
+      // Categories that should ALWAYS be excluded from shopping list
+      // These are prepared drinks, doses, and mixed drinks - not items you purchase
+      const alwaysExcludedPatterns = [
+        'copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'
+      ];
+      
+      // Build a set of category IDs that are always excluded
+      const alwaysExcludedIds = new Set(
+        categories
+          .filter(c => alwaysExcludedPatterns.some(pattern => 
+            c.name.toLowerCase().includes(pattern)
+          ))
+          .map(c => c.id)
+      );
+      
+      // Build a set of selected category IDs (if any)
+      const selectedCategoryIds = new Set(categoryIds.filter(id => !alwaysExcludedIds.has(id)));
+      
+      const shoppingListProducts = allProducts
+        .filter(p => {
+          // Always exclude prepared products
+          if (p.isPrepared) return false;
+          // Always exclude products from doses/drinks categories
+          if (alwaysExcludedIds.has(p.categoryId)) return false;
+          // If categoryIds were specified, only include those
+          if (selectedCategoryIds.size > 0 && !selectedCategoryIds.has(p.categoryId)) return false;
+          // Only include products below threshold
+          return p.stock < threshold;
+        })
+        .map(product => ({
+          id: product.id,
+          name: product.name,
+          categoryId: product.categoryId,
+          categoryName: categoryMap.get(product.categoryId) || 'Sem categoria',
+          currentStock: product.stock,
+          suggestedPurchase: Math.max(10 - product.stock, 5),
+          costPrice: parseFloat(product.costPrice),
+          estimatedPurchaseCost: parseFloat(product.costPrice) * Math.max(10 - product.stock, 5),
+        }))
+        .sort((a, b) => a.currentStock - b.currentStock);
+      
+      const summary = {
+        totalItems: shoppingListProducts.length,
+        totalEstimatedCost: shoppingListProducts.reduce((sum, p) => sum + p.estimatedPurchaseCost, 0),
+        threshold,
+        selectedCategories: categoryIds.length > 0 ? categoryIds.length : 'all',
+      };
+      
+      res.json({ summary, products: shoppingListProducts });
+    } catch (error) {
+      console.error("Error generating shopping list:", error);
+      res.status(500).json({ error: "Failed to generate shopping list" });
     }
   });
 
