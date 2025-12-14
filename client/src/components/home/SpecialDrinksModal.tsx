@@ -28,7 +28,7 @@ export function SpecialDrinksModal({ open, onOpenChange }: SpecialDrinksModalPro
     queryKey: ['/api/categories'],
   });
 
-  const specialCategoryNames = ['caipirinhas', 'drinks especiais', 'copão'];
+  const specialCategoryNames = ['CAIPIRINHAS', 'DRINKS ESPECIAIS', 'COPAO'];
 
   const specialCategories = categories.filter(c => 
     c.isActive && 
