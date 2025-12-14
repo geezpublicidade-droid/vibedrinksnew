@@ -25,11 +25,14 @@ export function ProductCard({ product }: ProductCardProps) {
     }).format(Number(price));
   };
 
-  const isOutOfStock = product.stock <= 0;
-  const isLowStock = product.stock > 0 && product.stock <= 5;
+  // Produtos preparados não têm controle de estoque
+  const isPreparedProduct = product.isPrepared === true;
+  const isOutOfStock = !isPreparedProduct && product.stock <= 0;
+  const isLowStock = !isPreparedProduct && product.stock > 0 && product.stock <= 5;
 
   const handleAddItem = () => {
-    if (product.stock <= 0 || quantity >= product.stock) {
+    // Produtos preparados podem ser adicionados sem limite de estoque
+    if (!isPreparedProduct && (product.stock <= 0 || quantity >= product.stock)) {
       setShowStockAlert(true);
       return;
     }
@@ -147,7 +150,7 @@ export function ProductCard({ product }: ProductCardProps) {
                     size="icon"
                     className="h-9 w-9 rounded-md text-primary hover:bg-primary/20"
                     onClick={handleAddItem}
-                    disabled={quantity >= product.stock}
+                    disabled={!isPreparedProduct && quantity >= product.stock}
                     data-testid={`button-increase-${product.id}`}
                   >
                     <Plus className="h-4 w-4" />

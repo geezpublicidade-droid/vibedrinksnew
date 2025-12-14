@@ -744,21 +744,32 @@ export async function registerRoutes(
             totalPrice: item.totalPrice,
           });
           
-          // Deduct stock for each item
+          // Deduct stock for each item (only for non-prepared products)
           const product = await storage.getProduct(item.productId);
           if (product) {
-            const previousStock = product.stock;
-            const newStock = Math.max(0, previousStock - item.quantity);
-            await storage.updateProduct(item.productId, { stock: newStock });
+            // Get categories to check if product is from a prepared category
+            const categories = await storage.getCategories();
+            const preparedCategoryNames = ['copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'];
+            const preparedCategoryIds = new Set(
+              categories.filter(c => preparedCategoryNames.some(name => c.name.toLowerCase().includes(name.toLowerCase()))).map(c => c.id)
+            );
+            const isPreparedProduct = product.isPrepared || preparedCategoryIds.has(product.categoryId);
             
-            // Log the stock change
-            await storage.createStockLog({
-              productId: item.productId,
-              previousStock,
-              newStock,
-              change: -item.quantity,
-              reason: `Pedido #${order.id.slice(0, 8)}`,
-            });
+            // Only deduct stock for non-prepared products
+            if (!isPreparedProduct) {
+              const previousStock = product.stock;
+              const newStock = Math.max(0, previousStock - item.quantity);
+              await storage.updateProduct(item.productId, { stock: newStock });
+              
+              // Log the stock change
+              await storage.createStockLog({
+                productId: item.productId,
+                previousStock,
+                newStock,
+                change: -item.quantity,
+                reason: `Pedido #${order.id.slice(0, 8)}`,
+              });
+            }
           }
         }
       }
@@ -814,23 +825,34 @@ export async function registerRoutes(
         updates.deliveredAt = now;
         break;
       case "cancelled":
-        // Restore stock for cancelled orders
+        // Restore stock for cancelled orders (only for non-prepared products)
         const orderItems = await storage.getOrderItems(req.params.id);
+        const allCategories = await storage.getCategories();
+        const preparedCatNames = ['copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'];
+        const preparedCatIds = new Set(
+          allCategories.filter(c => preparedCatNames.some(name => c.name.toLowerCase().includes(name.toLowerCase()))).map(c => c.id)
+        );
+        
         for (const item of orderItems) {
           const product = await storage.getProduct(item.productId);
           if (product) {
-            const previousStock = product.stock;
-            const newStock = previousStock + item.quantity;
-            await storage.updateProduct(item.productId, { stock: newStock });
+            const isPreparedProd = product.isPrepared || preparedCatIds.has(product.categoryId);
             
-            // Log the stock restoration
-            await storage.createStockLog({
-              productId: item.productId,
-              previousStock,
-              newStock,
-              change: item.quantity,
-              reason: `Cancelamento pedido #${req.params.id.slice(0, 8)}`,
-            });
+            // Only restore stock for non-prepared products
+            if (!isPreparedProd) {
+              const previousStock = product.stock;
+              const newStock = previousStock + item.quantity;
+              await storage.updateProduct(item.productId, { stock: newStock });
+              
+              // Log the stock restoration
+              await storage.createStockLog({
+                productId: item.productId,
+                previousStock,
+                newStock,
+                change: item.quantity,
+                reason: `Cancelamento pedido #${req.params.id.slice(0, 8)}`,
+              });
+            }
           }
         }
         break;
