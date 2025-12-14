@@ -1715,7 +1715,7 @@ export async function registerRoutes(
             costPrice: productData.costPrice,
             profitMargin: productData.profitMargin,
             salePrice: productData.salePrice,
-            stock: 9999,
+            stock: 0,
             isActive: true,
             isPrepared: true,
           });
