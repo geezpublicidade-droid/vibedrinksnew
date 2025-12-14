@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -28,32 +28,31 @@ export function SpecialDrinksModal({ open, onOpenChange }: SpecialDrinksModalPro
     queryKey: ['/api/categories'],
   });
 
-  const specialDrinkKeywords = ['caipirinha', 'drink', 'licor', 'caipiroska', 'moscow mule', 'mojito', 'margarita', 'cosmopolitan', 'ice', 'caipi', 'caipo', 'sex on the beach', 'pina colada', 'blue lagoon', 'gin tonica', 'gin tonico', 'whisky cola', 'cuba libre', 'negroni', 'aperol', 'sangria', 'spritz', 'batida', '43'];
-  const specialCategoryNames = ['caipirinhas', 'drinks especiais', 'copos / drinks', 'drinks', 'licores', 'caipivodkas', 'caipiroskas'];
+  const specialCategoryNames = ['caipirinhas', 'drinks especiais'];
 
   const specialCategories = categories.filter(c => 
     c.isActive && 
-    specialCategoryNames.some(name => c.name.toLowerCase().includes(name))
+    specialCategoryNames.some(name => c.name.toLowerCase() === name.toLowerCase())
   );
+
+  // Auto-select first category when modal opens
+  useEffect(() => {
+    if (open && specialCategories.length > 0 && !selectedCategory) {
+      setSelectedCategory(specialCategories[0].id);
+    }
+  }, [open, specialCategories, selectedCategory]);
+
+  // Reset selection when modal closes
+  useEffect(() => {
+    if (!open) {
+      setSelectedCategory(null);
+    }
+  }, [open]);
 
   const specialDrinks = products.filter(p => {
     if (!p.isActive) return false;
-    
-    const inSpecialCategory = specialCategories.some(c => c.id === p.categoryId);
-    const matchesSelectedCategory = !selectedCategory || p.categoryId === selectedCategory;
-    
-    // If a specific category is selected, only show products from that category
-    if (selectedCategory) {
-      return inSpecialCategory && matchesSelectedCategory && p.stock > 0;
-    }
-    
-    // If no category selected, show all special drinks with stock
-    const hasSpecialKeyword = specialDrinkKeywords.some(keyword => 
-      p.name.toLowerCase().includes(keyword)
-    );
-    const isComboEligible = p.comboEligible;
-    
-    return (inSpecialCategory || hasSpecialKeyword || isComboEligible) && p.stock > 0;
+    if (!selectedCategory) return false;
+    return p.categoryId === selectedCategory && p.stock > 0;
   });
 
   const formatPrice = (price: string | number) => {
@@ -112,15 +111,6 @@ export function SpecialDrinksModal({ open, onOpenChange }: SpecialDrinksModalPro
         ) : (
           <div className="space-y-6">
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant={selectedCategory === null ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedCategory(null)}
-                className={selectedCategory === null ? 'bg-gradient-to-r from-purple-500 to-pink-500' : ''}
-                data-testid="button-filter-all"
-              >
-                Todos
-              </Button>
               {specialCategories.map(category => (
                 <Button
                   key={category.id}
