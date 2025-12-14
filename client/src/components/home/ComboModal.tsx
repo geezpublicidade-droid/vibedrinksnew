@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery } from '@tanstack/react-query';
 import { useCart } from '@/lib/cart';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Zap, Snowflake, Percent, ShoppingCart, Loader2, Check, Wine } from 'lucide-react';
+import { Package, Zap, Snowflake, Percent, ShoppingCart, Loader2, Check, Wine, Plus, Minus } from 'lucide-react';
 import type { Product, Category, ComboGelo } from '@shared/schema';
 
 interface ComboModalProps {
@@ -15,9 +15,14 @@ interface ComboModalProps {
 
 type EnergeticoOption = '2L' | '4cans';
 
-const COMBO_CATEGORIES = ['Gin', 'Vodka', 'Cachaça', 'Whisky'];
+const COMBO_CATEGORIES = ['Gin', 'Vodka', 'Cachaca', 'Whisky'];
 const ICE_COUNT = 4;
 const CAN_COUNT = 4;
+
+interface SelectedGelo {
+  product: Product;
+  quantity: number;
+}
 
 export function ComboModal({ open, onOpenChange }: ComboModalProps) {
   const { addCombo } = useCart();
@@ -25,7 +30,7 @@ export function ComboModal({ open, onOpenChange }: ComboModalProps) {
   
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedDestilado, setSelectedDestilado] = useState<Product | null>(null);
-  const [selectedGelos, setSelectedGelos] = useState<(Product | null)[]>(Array(ICE_COUNT).fill(null));
+  const [selectedGelos, setSelectedGelos] = useState<SelectedGelo[]>([]);
   const [selectedEnergetico, setSelectedEnergetico] = useState<Product | null>(null);
   const [energeticoOption, setEnergeticoOption] = useState<EnergeticoOption>('2L');
 
@@ -106,24 +111,18 @@ export function ComboModal({ open, onOpenChange }: ComboModalProps) {
     [products]
   );
 
-  const getAvailableGelosForSlot = (slotIndex: number) => {
-    const selectedIds = selectedGelos
-      .filter((g, idx) => g !== null && idx !== slotIndex)
-      .map(g => g!.id);
-    return gelosAvailable.filter(g => !selectedIds.includes(g.id));
-  };
-
   const energeticoQuantity = energeticoOption === '2L' ? 1 : CAN_COUNT;
 
+  const totalGelosCount = selectedGelos.reduce((sum, g) => sum + g.quantity, 0);
+
   const calculateTotal = () => {
-    const validGelos = selectedGelos.filter((g): g is Product => g !== null);
-    if (!selectedDestilado || !selectedEnergetico || validGelos.length !== ICE_COUNT) {
+    if (!selectedDestilado || !selectedEnergetico || totalGelosCount !== ICE_COUNT) {
       return { original: 0, discounted: 0 };
     }
     
     const destiladoPrice = Number(selectedDestilado.salePrice);
     const energeticoPrice = Number(selectedEnergetico.salePrice) * energeticoQuantity;
-    const geloPrice = validGelos.reduce((sum, g) => sum + Number(g.salePrice), 0);
+    const geloPrice = selectedGelos.reduce((sum, g) => sum + Number(g.product.salePrice) * g.quantity, 0);
     
     const original = destiladoPrice + energeticoPrice + geloPrice;
     const discounted = original * 0.95;
@@ -133,21 +132,31 @@ export function ComboModal({ open, onOpenChange }: ComboModalProps) {
 
   const totals = calculateTotal();
 
-  const handleSelectGelo = (index: number, product: Product | null) => {
+  const handleGeloQuantityChange = (product: Product, delta: number) => {
     setSelectedGelos(prev => {
+      const existingIndex = prev.findIndex(g => g.product.id === product.id);
       const newGelos = [...prev];
-      newGelos[index] = product;
+      
+      if (existingIndex >= 0) {
+        const newQty = newGelos[existingIndex].quantity + delta;
+        if (newQty <= 0) {
+          newGelos.splice(existingIndex, 1);
+        } else if (totalGelosCount - newGelos[existingIndex].quantity + newQty <= ICE_COUNT) {
+          newGelos[existingIndex].quantity = newQty;
+        }
+      } else if (delta > 0 && totalGelosCount < ICE_COUNT) {
+        newGelos.push({ product, quantity: 1 });
+      }
+      
       return newGelos;
     });
   };
 
   const handleAddCombo = () => {
-    const validGelos = selectedGelos.filter((g): g is Product => g !== null);
-    
-    if (!selectedDestilado || !selectedEnergetico || validGelos.length !== ICE_COUNT) {
+    if (!selectedDestilado || !selectedEnergetico || totalGelosCount !== ICE_COUNT) {
       toast({
         title: 'Selecione todos os itens',
-        description: 'Escolha a bebida, os 4 gelos e o energetico para montar seu combo.',
+        description: 'Escolha a bebida, 4 gelos (podem ser repetidos) e o energetico para montar seu combo.',
         variant: 'destructive',
       });
       return;
@@ -155,9 +164,9 @@ export function ComboModal({ open, onOpenChange }: ComboModalProps) {
 
     const comboId = `combo-${Date.now()}`;
     
-    const gelos: ComboGelo[] = validGelos.map(g => ({
-      product: g,
-      quantity: 1,
+    const gelos: ComboGelo[] = selectedGelos.map(g => ({
+      product: g.product,
+      quantity: g.quantity,
     }));
 
     addCombo({
@@ -183,13 +192,12 @@ export function ComboModal({ open, onOpenChange }: ComboModalProps) {
   const resetSelections = () => {
     setSelectedCategory(null);
     setSelectedDestilado(null);
-    setSelectedGelos(Array(ICE_COUNT).fill(null));
+    setSelectedGelos([]);
     setSelectedEnergetico(null);
     setEnergeticoOption('2L');
   };
 
-  const validGelosCount = selectedGelos.filter(g => g !== null).length;
-  const isComplete = selectedDestilado && selectedEnergetico && validGelosCount === ICE_COUNT;
+  const isComplete = selectedDestilado && selectedEnergetico && totalGelosCount === ICE_COUNT;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -275,50 +283,58 @@ export function ComboModal({ open, onOpenChange }: ComboModalProps) {
               <div className="flex items-center gap-2">
                 <Snowflake className="h-5 w-5 text-primary" />
                 <h3 className="font-semibold">3. Escolha os 4 Gelos</h3>
-                <span className="text-xs text-muted-foreground">({validGelosCount}/{ICE_COUNT} selecionados)</span>
+                <span className="text-xs text-muted-foreground">({totalGelosCount}/{ICE_COUNT})</span>
               </div>
               
-              <div className="grid grid-cols-2 gap-3">
-                {Array(ICE_COUNT).fill(null).map((_, index) => {
-                  const availableForSlot = getAvailableGelosForSlot(index);
-                  return (
-                    <div key={index} className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Gelo {index + 1}</label>
-                      <ScrollArea className="h-[100px] rounded-md border">
-                        <div className="p-1 space-y-1">
-                          {selectedGelos[index] && (
-                            <button
-                              key={selectedGelos[index]!.id}
-                              onClick={() => handleSelectGelo(index, null)}
-                              className="w-full flex items-center justify-between p-1.5 rounded text-xs text-left bg-primary/10 border border-primary"
-                              data-testid={`button-select-gelo-${index}-${selectedGelos[index]!.id}`}
+              <ScrollArea className="h-[200px] rounded-md border">
+                <div className="p-2 space-y-2">
+                  {gelosAvailable.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhum gelo disponivel
+                    </p>
+                  ) : (
+                    gelosAvailable.map((product) => {
+                      const selectedGelo = selectedGelos.find(g => g.product.id === product.id);
+                      const quantity = selectedGelo?.quantity ?? 0;
+                      return (
+                        <div
+                          key={product.id}
+                          className="flex items-center justify-between p-2 rounded-md border hover-elevate"
+                          data-testid={`item-gelo-${product.id}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium block truncate">{product.name.replace(/GELO /i, '')}</span>
+                            <span className="text-xs text-muted-foreground">R$ {Number(product.salePrice).toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => handleGeloQuantityChange(product, -1)}
+                              disabled={quantity === 0}
+                              data-testid={`button-decrease-gelo-${product.id}`}
                             >
-                              <span className="flex-1 truncate pr-1">{selectedGelos[index]!.name.replace(/GELO /i, '')}</span>
-                              <span className="flex items-center gap-1 shrink-0">
-                                <span className="text-muted-foreground">R${Number(selectedGelos[index]!.salePrice).toFixed(2)}</span>
-                                <Check className="h-3 w-3 text-primary" />
-                              </span>
-                            </button>
-                          )}
-                          {availableForSlot.map((product) => (
-                            <button
-                              key={product.id}
-                              onClick={() => handleSelectGelo(index, product)}
-                              className="w-full flex items-center justify-between p-1.5 rounded text-xs text-left transition-colors hover-elevate hover:bg-muted"
-                              data-testid={`button-select-gelo-${index}-${product.id}`}
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-6 text-center text-sm font-semibold">{quantity}</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => handleGeloQuantityChange(product, 1)}
+                              disabled={totalGelosCount >= ICE_COUNT}
+                              data-testid={`button-increase-gelo-${product.id}`}
                             >
-                              <span className="flex-1 truncate pr-1">{product.name.replace(/GELO /i, '')}</span>
-                              <span className="flex items-center gap-1 shrink-0">
-                                <span className="text-muted-foreground">R${Number(product.salePrice).toFixed(2)}</span>
-                              </span>
-                            </button>
-                          ))}
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                      </ScrollArea>
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })
+                  )}
+                </div>
+              </ScrollArea>
             </div>
 
             <div className="space-y-3">
