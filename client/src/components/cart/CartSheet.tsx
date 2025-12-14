@@ -116,10 +116,12 @@ export function CartSheet({ open, onOpenChange }: CartSheetProps) {
                         <span>{combo.energeticoQuantity}x {combo.energetico.name}</span>
                         <span>{formatPrice(Number(combo.energetico.salePrice) * combo.energeticoQuantity)}</span>
                       </div>
-                      <div className="flex justify-between text-white/80">
-                        <span>{combo.geloQuantity}x {combo.gelo.name}</span>
-                        <span>{formatPrice(Number(combo.gelo.salePrice) * combo.geloQuantity)}</span>
-                      </div>
+                      {combo.gelos.map((gelo, idx) => (
+                        <div key={idx} className="flex justify-between text-white/80">
+                          <span>{gelo.quantity}x {gelo.product.name}</span>
+                          <span>{formatPrice(Number(gelo.product.salePrice) * gelo.quantity)}</span>
+                        </div>
+                      ))}
                       <div className="border-t border-primary/20 pt-2 mt-2">
                         <div className="flex justify-between text-muted-foreground">
                           <span>Subtotal:</span>

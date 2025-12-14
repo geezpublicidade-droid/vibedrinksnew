@@ -87,11 +87,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addCombo = (combo: ComboData) => {
     setCombos(prev => [...prev, combo]);
+    const geloItems = combo.gelos.map(g => ({
+      productId: g.product.id,
+      product: g.product,
+      quantity: g.quantity,
+      isComboItem: true,
+      comboId: combo.id,
+    }));
     setItems(prev => [
       ...prev,
       { productId: combo.destilado.id, product: combo.destilado, quantity: 1, isComboItem: true, comboId: combo.id },
       { productId: combo.energetico.id, product: combo.energetico, quantity: combo.energeticoQuantity, isComboItem: true, comboId: combo.id },
-      { productId: combo.gelo.id, product: combo.gelo, quantity: combo.geloQuantity, isComboItem: true, comboId: combo.id },
+      ...geloItems,
     ]);
   };
 

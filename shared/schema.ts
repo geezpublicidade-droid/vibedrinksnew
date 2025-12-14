@@ -207,13 +207,17 @@ export type CartItem = {
   comboId?: string;
 };
 
+export type ComboGelo = {
+  product: Product;
+  quantity: number;
+};
+
 export type ComboData = {
   id: string;
   destilado: Product;
   energetico: Product;
   energeticoQuantity: number;
-  gelo: Product;
-  geloQuantity: number;
+  gelos: ComboGelo[];
   discountPercent: number;
   originalTotal: number;
   discountedTotal: number;
