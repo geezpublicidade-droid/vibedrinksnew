@@ -749,7 +749,7 @@ export async function registerRoutes(
           if (product) {
             // Get categories to check if product is from a prepared category
             const categories = await storage.getCategories();
-            const preparedCategoryNames = ['copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'];
+            const preparedCategoryNames = ['copos', 'doses', 'copao', 'drinks', 'caipirinhas', 'drinks especiais', 'batidas'];
             const preparedCategoryIds = new Set(
               categories.filter(c => preparedCategoryNames.some(name => c.name.toLowerCase().includes(name.toLowerCase()))).map(c => c.id)
             );
@@ -828,7 +828,7 @@ export async function registerRoutes(
         // Restore stock for cancelled orders (only for non-prepared products)
         const orderItems = await storage.getOrderItems(req.params.id);
         const allCategories = await storage.getCategories();
-        const preparedCatNames = ['copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'];
+        const preparedCatNames = ['copos', 'doses', 'copao', 'drinks', 'caipirinhas', 'drinks especiais', 'batidas'];
         const preparedCatIds = new Set(
           allCategories.filter(c => preparedCatNames.some(name => c.name.toLowerCase().includes(name.toLowerCase()))).map(c => c.id)
         );
@@ -1249,7 +1249,7 @@ export async function registerRoutes(
       
       // Categories that are prepared drinks/doses
       const preparedCategoryPatterns = [
-        'copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'
+        'copos', 'doses', 'copao', 'drinks', 'caipirinhas', 'drinks especiais', 'batidas'
       ];
       
       // Build a set of category IDs for prepared products
@@ -1308,7 +1308,7 @@ export async function registerRoutes(
       // Categories that should be excluded from stock value calculations
       // These are prepared drinks, doses, and mixed drinks
       const excludedCategoryPatterns = [
-        'copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'
+        'copos', 'doses', 'copao', 'drinks', 'caipirinhas', 'drinks especiais', 'batidas'
       ];
       
       // Build a set of category IDs to exclude
@@ -1396,7 +1396,7 @@ export async function registerRoutes(
       // Categories that should be excluded from shopping list
       // These are prepared drinks, doses, and mixed drinks - not items you purchase
       const excludedCategoryPatterns = [
-        'copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'
+        'copos', 'doses', 'copao', 'drinks', 'caipirinhas', 'drinks especiais', 'batidas'
       ];
       
       // Build a set of category IDs to exclude
@@ -1455,7 +1455,7 @@ export async function registerRoutes(
       // Categories that should ALWAYS be excluded from shopping list
       // These are prepared drinks, doses, and mixed drinks - not items you purchase
       const alwaysExcludedPatterns = [
-        'copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'
+        'copos', 'doses', 'copao', 'drinks', 'caipirinhas', 'drinks especiais', 'batidas'
       ];
       
       // Build a set of category IDs that are always excluded
@@ -1468,7 +1468,7 @@ export async function registerRoutes(
       );
       
       // Build a set of selected category IDs (if any)
-      const selectedCategoryIds = new Set(categoryIds.filter(id => !alwaysExcludedIds.has(id)));
+      const selectedCategoryIds = new Set(categoryIds.filter((id: string) => !alwaysExcludedIds.has(id)));
       
       const shoppingListProducts = allProducts
         .filter(p => {
@@ -1670,6 +1670,73 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating delivery fee:", error);
       res.status(500).json({ error: "Erro ao atualizar taxa de entrega" });
+    }
+  });
+
+  // Seed BATIDAS category with products
+  app.post("/api/seed-batidas", async (_req, res) => {
+    try {
+      // Check if BATIDAS category already exists
+      const categories = await storage.getCategories();
+      let batidasCategory = categories.find(c => c.name.toUpperCase().includes('BATIDAS'));
+      
+      if (!batidasCategory) {
+        // Create BATIDAS category
+        batidasCategory = await storage.createCategory({
+          name: 'BATIDAS',
+          iconUrl: 'cup-soda',
+          sortOrder: 50,
+          isActive: true,
+        });
+      }
+      
+      // Check if products already exist for this category
+      const existingProducts = await storage.getProducts();
+      const batidasProducts = existingProducts.filter(p => p.categoryId === batidasCategory!.id);
+      
+      if (batidasProducts.length === 0) {
+        // Create BATIDAS products
+        const batidasProductsList = [
+          { name: 'BATIDA DE MORANGO', description: 'BATIDA CREMOSA DE MORANGO', costPrice: '0.00', profitMargin: '100.00', salePrice: '15.00' },
+          { name: 'BATIDA DE MARACUJA', description: 'BATIDA CREMOSA DE MARACUJA', costPrice: '0.00', profitMargin: '100.00', salePrice: '15.00' },
+          { name: 'BATIDA DE COCO', description: 'BATIDA CREMOSA DE COCO', costPrice: '0.00', profitMargin: '100.00', salePrice: '15.00' },
+          { name: 'BATIDA DE ABACAXI', description: 'BATIDA CREMOSA DE ABACAXI', costPrice: '0.00', profitMargin: '100.00', salePrice: '15.00' },
+          { name: 'BATIDA DE LIMAO', description: 'BATIDA CREMOSA DE LIMAO', costPrice: '0.00', profitMargin: '100.00', salePrice: '15.00' },
+          { name: 'BATIDA DE AMENDOIM', description: 'BATIDA CREMOSA DE AMENDOIM', costPrice: '0.00', profitMargin: '100.00', salePrice: '15.00' },
+          { name: 'BATIDA DE CHOCOLATE', description: 'BATIDA CREMOSA DE CHOCOLATE', costPrice: '0.00', profitMargin: '100.00', salePrice: '18.00' },
+          { name: 'BATIDA DE BANANA', description: 'BATIDA CREMOSA DE BANANA', costPrice: '0.00', profitMargin: '100.00', salePrice: '15.00' },
+        ];
+        
+        for (const productData of batidasProductsList) {
+          await storage.createProduct({
+            categoryId: batidasCategory.id,
+            name: productData.name,
+            description: productData.description,
+            costPrice: productData.costPrice,
+            profitMargin: productData.profitMargin,
+            salePrice: productData.salePrice,
+            stock: 9999,
+            isActive: true,
+            isPrepared: true,
+          });
+        }
+        
+        res.json({ 
+          success: true, 
+          message: 'CATEGORIA BATIDAS CRIADA COM SUCESSO COM 8 PRODUTOS',
+          categoryId: batidasCategory.id 
+        });
+      } else {
+        res.json({ 
+          success: true, 
+          message: 'CATEGORIA BATIDAS JA EXISTE COM PRODUTOS',
+          categoryId: batidasCategory.id,
+          productsCount: batidasProducts.length
+        });
+      }
+    } catch (error) {
+      console.error("Error seeding BATIDAS:", error);
+      res.status(500).json({ error: "Erro ao criar categoria BATIDAS" });
     }
   });
 
