@@ -65,13 +65,18 @@ export function ComboModal({ open, onOpenChange }: ComboModalProps) {
     return energeticoKeywords.some(keyword => lowerName.includes(keyword));
   };
 
+  const is2LProduct = (name: string): boolean => {
+    const normalized = name.toLowerCase().replace(/\s+/g, '');
+    return normalized.includes('2l');
+  };
+
   const energeticos2L = useMemo(() => 
     products.filter(p => 
       p.comboEligible && 
       p.isActive && 
       p.stock > 0 && 
       isEnergetico(p.name) && 
-      p.name.toLowerCase().includes('2l')
+      is2LProduct(p.name)
     ),
     [products]
   );
@@ -82,7 +87,7 @@ export function ComboModal({ open, onOpenChange }: ComboModalProps) {
       p.isActive && 
       p.stock >= CAN_COUNT && 
       isEnergetico(p.name) && 
-      !p.name.toLowerCase().includes('2l')
+      !is2LProduct(p.name)
     ),
     [products]
   );
