@@ -415,24 +415,42 @@ export async function registerRoutes(
 
   app.delete("/api/categories/:id", async (req, res) => {
     try {
-      const allProducts = await storage.getAllProducts();
+      const categoryId = req.params.id;
+      
+      // Verify category exists
+      const category = await storage.getCategory(categoryId);
+      if (!category) {
+        return res.status(404).json({ error: "Categoria não encontrada" });
+      }
       
       // Delete ALL products linked to this category (regardless of status)
-      const allCategoryProducts = allProducts.filter(p => p.categoryId === req.params.id);
+      const allProducts = await storage.getAllProducts();
+      const allCategoryProducts = allProducts.filter(p => p.categoryId === categoryId);
+      
       for (const product of allCategoryProducts) {
         await storage.deleteProduct(product.id);
       }
       
       // Now delete the category itself
-      const deleted = await storage.deleteCategory(req.params.id);
-      if (!deleted) return res.status(404).json({ error: "Category not found" });
+      const deleted = await storage.deleteCategory(categoryId);
+      if (!deleted) {
+        return res.status(500).json({ error: "Falha ao excluir categoria após deletar produtos" });
+      }
+      
       res.status(204).send();
     } catch (error: any) {
       console.error("Error deleting category:", error);
+      
+      // Handle database constraint violations
       if (error.code === '23503') {
-        return res.status(400).json({ error: "Categoria possui produtos vinculados" });
+        return res.status(400).json({ error: "Categoria possui produtos vinculados que não puderam ser deletados" });
       }
-      res.status(500).json({ error: "Erro ao excluir categoria" });
+      
+      if (error.message && error.message.includes('still has')) {
+        return res.status(400).json({ error: "Categoria possui dados vinculados. Verifique produtos e tente novamente." });
+      }
+      
+      res.status(500).json({ error: `Erro ao excluir categoria: ${error.message || 'Unknown error'}` });
     }
   });
 

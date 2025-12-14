@@ -37,7 +37,7 @@ export const categories = pgTable("categories", {
 
 export const products = pgTable("products", {
   id: varchar("id", { length: 36 }).primaryKey(),
-  categoryId: varchar("category_id", { length: 36 }).notNull().references(() => categories.id),
+  categoryId: varchar("category_id", { length: 36 }).notNull().references(() => categories.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   imageUrl: text("image_url"),
