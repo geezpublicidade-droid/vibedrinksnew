@@ -1174,7 +1174,13 @@ interface LowStockData {
 function EstoqueTab() {
   const [showReport, setShowReport] = useState(false);
   const [showLowStock, setShowLowStock] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ['/api/categories'],
+  });
 
   const { data: stockReport, isLoading: isLoadingReport, refetch: refetchReport } = useQuery<StockReportData>({
     queryKey: ['/api/stock/report'],
@@ -1197,9 +1203,52 @@ function EstoqueTab() {
   const handleShowLowStock = () => {
     setShowLowStock(true);
     setShowReport(false);
+    setCategoryFilter('all');
+    setSelectedProducts(new Set());
     if (showLowStock) {
       refetchLowStock();
     }
+  };
+
+  // Filter products by category
+  const filteredLowStockProducts = lowStockData?.products.filter(product => 
+    categoryFilter === 'all' || product.categoryId === categoryFilter
+  ) || [];
+
+  // Get unique categories from low stock products using product's categoryName directly
+  const lowStockCategories = lowStockData?.products 
+    ? [...new Map(lowStockData.products.map(p => [p.categoryId, { id: p.categoryId, name: p.categoryName }])).values()]
+    : [];
+
+  // Clear selection when category filter changes to avoid orphaned selections
+  const handleCategoryFilterChange = (value: string) => {
+    setCategoryFilter(value);
+    setSelectedProducts(new Set());
+  };
+
+  // Calculate summary for selected products only
+  const selectedProductsArray = filteredLowStockProducts.filter(p => selectedProducts.has(p.id));
+  const selectedSummary = {
+    totalItems: selectedProducts.size,
+    totalCost: selectedProductsArray.reduce((sum, p) => sum + p.estimatedPurchaseCost, 0)
+  };
+
+  const handleSelectAll = () => {
+    if (selectedProducts.size === filteredLowStockProducts.length) {
+      setSelectedProducts(new Set());
+    } else {
+      setSelectedProducts(new Set(filteredLowStockProducts.map(p => p.id)));
+    }
+  };
+
+  const handleToggleProduct = (productId: string) => {
+    const newSet = new Set(selectedProducts);
+    if (newSet.has(productId)) {
+      newSet.delete(productId);
+    } else {
+      newSet.add(productId);
+    }
+    setSelectedProducts(newSet);
   };
 
   const handleExportStockReport = () => {
@@ -1249,17 +1298,24 @@ function EstoqueTab() {
   const handleExportLowStock = () => {
     if (!lowStockData) return;
     
+    // Export only selected products, or all filtered if none selected
+    const productsToExport = selectedProducts.size > 0 
+      ? filteredLowStockProducts.filter(p => selectedProducts.has(p.id))
+      : filteredLowStockProducts;
+    
+    const totalCost = productsToExport.reduce((sum, p) => sum + p.estimatedPurchaseCost, 0);
+    
     const csvData = [
       ['Lista de Compras - Vibe Drinks'],
       ['Data:', new Date().toLocaleDateString('pt-BR')],
       [],
       ['RESUMO'],
-      ['Produtos com Estoque Baixo:', lowStockData.summary.totalLowStockItems],
-      ['Custo Estimado de Compra:', formatCurrency(lowStockData.summary.totalEstimatedPurchaseCost)],
+      ['Produtos Selecionados:', productsToExport.length],
+      ['Custo Estimado de Compra:', formatCurrency(totalCost)],
       [],
       ['PRODUTOS PARA COMPRAR'],
       ['Nome', 'Categoria', 'Estoque Atual', 'Qtd Sugerida', 'Custo Unit.', 'Custo Estimado'],
-      ...lowStockData.products.map(p => [
+      ...productsToExport.map(p => [
         p.name,
         p.categoryName,
         p.currentStock,
@@ -1476,16 +1532,29 @@ function EstoqueTab() {
             <>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <h3 className="text-xl font-semibold">Lista de Compras Sugerida</h3>
-                <Button variant="outline" size="sm" onClick={handleExportLowStock} data-testid="button-export-low-stock">
-                  <Download className="w-4 h-4 mr-2" />
-                  Exportar CSV
-                </Button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Select value={categoryFilter} onValueChange={handleCategoryFilterChange}>
+                    <SelectTrigger className="w-48 bg-secondary border-primary/30" data-testid="select-category-filter">
+                      <SelectValue placeholder="Filtrar por categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as Categorias</SelectItem>
+                      {lowStockCategories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={handleExportLowStock} data-testid="button-export-low-stock">
+                    <Download className="w-4 h-4 mr-2" />
+                    Exportar CSV {selectedProducts.size > 0 && `(${selectedProducts.size})`}
+                  </Button>
+                </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Produtos com Estoque Baixo</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Estoque Baixo</CardTitle>
                     <AlertTriangle className="w-4 h-4 text-yellow-500" />
                   </CardHeader>
                   <CardContent>
@@ -1496,25 +1565,59 @@ function EstoqueTab() {
 
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Custo Estimado de Compra</CardTitle>
-                    <DollarSign className="w-4 h-4 text-primary" />
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Custo Total</CardTitle>
+                    <DollarSign className="w-4 h-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <p className="text-2xl font-bold" data-testid="text-estimated-cost">{formatCurrency(lowStockData.summary.totalEstimatedPurchaseCost)}</p>
-                    <p className="text-xs text-muted-foreground">para repor todos os itens</p>
+                    <p className="text-xs text-muted-foreground">para repor todos</p>
+                  </CardContent>
+                </Card>
+
+                <Card className={selectedProducts.size > 0 ? 'border-primary/50' : ''}>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Selecionados</CardTitle>
+                    <Check className="w-4 h-4 text-primary" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-primary" data-testid="text-selected-items">{selectedSummary.totalItems}</p>
+                    <p className="text-xs text-muted-foreground">produtos marcados</p>
+                  </CardContent>
+                </Card>
+
+                <Card className={selectedProducts.size > 0 ? 'border-primary/50' : ''}>
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Custo Selecionados</CardTitle>
+                    <DollarSign className="w-4 h-4 text-primary" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-primary" data-testid="text-selected-cost">{formatCurrency(selectedSummary.totalCost)}</p>
+                    <p className="text-xs text-muted-foreground">para comprar selecionados</p>
                   </CardContent>
                 </Card>
               </div>
 
               <Card>
-                <CardHeader>
-                  <CardTitle>Produtos para Comprar</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
+                  <CardTitle>Produtos para Comprar ({filteredLowStockProducts.length})</CardTitle>
+                  <Button variant="ghost" size="sm" onClick={handleSelectAll} data-testid="button-select-all">
+                    {selectedProducts.size === filteredLowStockProducts.length && filteredLowStockProducts.length > 0 ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                  </Button>
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="border-b border-border/30">
                         <tr>
+                          <th className="text-center p-4 text-muted-foreground font-medium w-12">
+                            <input 
+                              type="checkbox" 
+                              checked={selectedProducts.size === filteredLowStockProducts.length && filteredLowStockProducts.length > 0}
+                              onChange={handleSelectAll}
+                              className="w-4 h-4 rounded border-primary/30"
+                              data-testid="checkbox-select-all"
+                            />
+                          </th>
                           <th className="text-left p-4 text-muted-foreground font-medium">Produto</th>
                           <th className="text-left p-4 text-muted-foreground font-medium">Categoria</th>
                           <th className="text-right p-4 text-muted-foreground font-medium">Estoque Atual</th>
@@ -1524,8 +1627,22 @@ function EstoqueTab() {
                         </tr>
                       </thead>
                       <tbody>
-                        {lowStockData.products.map(product => (
-                          <tr key={product.id} className="border-b border-border/20 last:border-0" data-testid={`row-low-stock-${product.id}`}>
+                        {filteredLowStockProducts.map(product => (
+                          <tr 
+                            key={product.id} 
+                            className={`border-b border-border/20 last:border-0 cursor-pointer hover-elevate ${selectedProducts.has(product.id) ? 'bg-primary/10' : ''}`} 
+                            data-testid={`row-low-stock-${product.id}`}
+                            onClick={() => handleToggleProduct(product.id)}
+                          >
+                            <td className="text-center p-4" onClick={(e) => e.stopPropagation()}>
+                              <input 
+                                type="checkbox" 
+                                checked={selectedProducts.has(product.id)}
+                                onChange={() => handleToggleProduct(product.id)}
+                                className="w-4 h-4 rounded border-primary/30"
+                                data-testid={`checkbox-product-${product.id}`}
+                              />
+                            </td>
                             <td className="p-4 font-medium">{product.name}</td>
                             <td className="p-4 text-muted-foreground">{product.categoryName}</td>
                             <td className="p-4 text-right">
@@ -1541,10 +1658,10 @@ function EstoqueTab() {
                       </tbody>
                     </table>
                   </div>
-                  {lowStockData.products.length === 0 && (
+                  {filteredLowStockProducts.length === 0 && (
                     <div className="py-12 text-center text-muted-foreground">
                       <Check className="w-12 h-12 mx-auto mb-4 text-green-500" />
-                      <p>Todos os produtos estao com estoque adequado!</p>
+                      <p>{categoryFilter === 'all' ? 'Todos os produtos estao com estoque adequado!' : 'Nenhum produto desta categoria com estoque baixo'}</p>
                     </div>
                   )}
                 </CardContent>

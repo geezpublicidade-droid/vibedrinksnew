@@ -15,15 +15,34 @@ interface CategoryCarouselProps {
 
 export function CategoryCarousel({ categories, selectedCategory, onSelectCategory, showTrending = false }: CategoryCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const activeCategories = categories.filter(c => c.isActive);
+  
+  // Filter active categories and sort by popularity (salesCount descending)
+  // Clone array before sorting to avoid mutating original query data
+  const activeCategories = [...categories]
+    .filter(c => c.isActive)
+    .sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0));
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return;
+    const container = scrollRef.current;
     const scrollAmount = 200;
-    scrollRef.current.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
-      behavior: 'smooth'
-    });
+    const maxScroll = container.scrollWidth - container.clientWidth;
+    
+    if (direction === 'right') {
+      // If at the end, loop back to start
+      if (container.scrollLeft >= maxScroll - 10) {
+        container.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      }
+    } else {
+      // If at the start, loop to the end
+      if (container.scrollLeft <= 10) {
+        container.scrollTo({ left: maxScroll, behavior: 'smooth' });
+      } else {
+        container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      }
+    }
   };
 
   if (activeCategories.length === 0) return null;
