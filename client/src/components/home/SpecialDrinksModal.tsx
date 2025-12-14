@@ -28,7 +28,7 @@ export function SpecialDrinksModal({ open, onOpenChange }: SpecialDrinksModalPro
     queryKey: ['/api/categories'],
   });
 
-  const specialCategoryNames = ['caipirinhas', 'drinks especiais'];
+  const specialCategoryNames = ['caipirinhas', 'drinks especiais', 'copão'];
 
   const specialCategories = categories.filter(c => 
     c.isActive && 
@@ -68,16 +68,19 @@ export function SpecialDrinksModal({ open, onOpenChange }: SpecialDrinksModalPro
   };
 
   const handleAddToCart = (product: Product) => {
-    const cartItem = items.find(i => i.productId === product.id);
-    const currentQty = cartItem?.quantity ?? 0;
-    
-    if (product.stock <= 0 || currentQty >= product.stock) {
-      toast({
-        title: 'Estoque Insuficiente',
-        description: `O produto ${product.name} esta com estoque zerado ou voce ja adicionou a quantidade maxima disponivel.`,
-        variant: 'destructive',
-      });
-      return;
+    // Produtos preparados não têm limite de estoque
+    if (!product.isPrepared) {
+      const cartItem = items.find(i => i.productId === product.id);
+      const currentQty = cartItem?.quantity ?? 0;
+      
+      if (product.stock <= 0 || currentQty >= product.stock) {
+        toast({
+          title: 'Estoque Insuficiente',
+          description: `O produto ${product.name} esta com estoque zerado ou voce ja adicionou a quantidade maxima disponivel.`,
+          variant: 'destructive',
+        });
+        return;
+      }
     }
     
     addItem(product);
@@ -139,7 +142,8 @@ export function SpecialDrinksModal({ open, onOpenChange }: SpecialDrinksModalPro
                 <AnimatePresence mode="popLayout">
                   {specialDrinks.map((product) => {
                     const quantity = getCartQuantity(product.id);
-                    const isOutOfStock = product.stock <= 0;
+                    // Produtos preparados nunca estão esgotados
+                    const isOutOfStock = !product.isPrepared && product.stock <= 0;
 
                     return (
                       <motion.div
