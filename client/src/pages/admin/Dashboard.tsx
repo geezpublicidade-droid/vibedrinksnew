@@ -2179,6 +2179,16 @@ function isPreparedCategory(categoryName: string): boolean {
 }
 
 function ProdutosTab() {
+  const { toast } = useToast();
+  
+  const { data: products = [] } = useQuery<Product[]>({
+    queryKey: ['/api/products'],
+  });
+
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ['/api/categories'],
+  });
+
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
@@ -2204,7 +2214,6 @@ function ProdutosTab() {
   } | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const tableImageInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
 
   const handleOpenDialog = (product: Product | null) => {
     setEditingProduct(product);
@@ -2261,14 +2270,6 @@ function ProdutosTab() {
       setProfitMargin(newMargin.toFixed(2));
     }
   };
-
-  const { data: products = [] } = useQuery<Product[]>({
-    queryKey: ['/api/products'],
-  });
-
-  const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: ['/api/categories'],
-  });
 
   const createMutation = useMutation({
     mutationFn: async (data: Partial<Product>) => {
