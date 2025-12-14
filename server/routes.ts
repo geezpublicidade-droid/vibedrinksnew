@@ -424,8 +424,9 @@ export async function registerRoutes(
         });
       }
       
-      const inactiveProducts = allProducts.filter(p => p.categoryId === req.params.id && !p.isActive);
-      for (const product of inactiveProducts) {
+      // Delete all inactive products (visible and phantom products)
+      const allCategoryProducts = allProducts.filter(p => p.categoryId === req.params.id);
+      for (const product of allCategoryProducts) {
         await storage.deleteProduct(product.id);
       }
       
@@ -1196,6 +1197,67 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating product image:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Prepared Products Sales Report - Revenue from prepared products
+  // Includes: isPrepared products, doses (Copos/Drinks), 
+  // Caipirinhas, Caipi Ices, and Drinks Especiais - these are prepared/mixed drinks
+  app.get("/api/prepared-products/sales", async (req, res) => {
+    try {
+      const orders = await storage.getOrders();
+      const orderItems = await storage.getAllOrderItems();
+      const allProducts = await storage.getProducts();
+      const categories = await storage.getCategories();
+      
+      const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+      const productMap = new Map(allProducts.map(p => [p.id, p]));
+      
+      // Categories that are prepared drinks/doses
+      const preparedCategoryPatterns = [
+        'copos', 'drinks', 'caipirinhas', 'drinks especiais'
+      ];
+      
+      // Build a set of category IDs for prepared products
+      const preparedCategoryIds = new Set(
+        categories
+          .filter(c => preparedCategoryPatterns.some(pattern => 
+            c.name.toLowerCase().includes(pattern)
+          ))
+          .map(c => c.id)
+      );
+      
+      // Calculate revenue from prepared products
+      let totalRevenue = 0;
+      let totalQuantitySold = 0;
+      let deliveredOrdersCount = 0;
+      
+      orderItems.forEach(item => {
+        const product = productMap.get(item.productId);
+        if (!product) return;
+        
+        const isPrepared = product.isPrepared || false;
+        const isFromPreparedCategory = preparedCategoryIds.has(product.categoryId);
+        
+        if (isPrepared || isFromPreparedCategory) {
+          const order = orders.find(o => o.id === item.orderId);
+          if (order && order.status === 'delivered') {
+            totalRevenue += parseFloat(item.totalPrice);
+            totalQuantitySold += item.quantity;
+            deliveredOrdersCount = Math.max(deliveredOrdersCount, 1); // Count unique orders
+          }
+        }
+      });
+      
+      res.json({ 
+        totalRevenue,
+        totalQuantitySold,
+        averagePerOrder: deliveredOrdersCount > 0 ? totalRevenue / deliveredOrdersCount : 0,
+        ordersCount: deliveredOrdersCount
+      });
+    } catch (error) {
+      console.error("Error generating prepared products sales report:", error);
+      res.status(500).json({ error: "Failed to generate prepared products sales report" });
     }
   });
 

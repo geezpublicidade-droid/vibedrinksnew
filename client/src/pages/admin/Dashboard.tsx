@@ -519,6 +519,13 @@ function DeliveryTab() {
   );
 }
 
+interface PreparedProductsSales {
+  totalRevenue: number;
+  totalQuantitySold: number;
+  averagePerOrder: number;
+  ordersCount: number;
+}
+
 function FinanceiroTab() {
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'custom'>('month');
   const [customStartDate, setCustomStartDate] = useState<string>('');
@@ -530,6 +537,10 @@ function FinanceiroTab() {
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['/api/products'],
+  });
+
+  const { data: preparedProductsSales = { totalRevenue: 0, totalQuantitySold: 0, averagePerOrder: 0, ordersCount: 0 } } = useQuery<PreparedProductsSales>({
+    queryKey: ['/api/prepared-products/sales'],
   });
 
   const deliveredOrders = orders.filter(o => o.status === 'delivered');
@@ -765,12 +776,19 @@ function FinanceiroTab() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card data-testid="card-total-revenue">
           <CardContent className="p-6">
             <div className="text-sm text-muted-foreground mb-1">Receita Total</div>
             <div className="text-2xl font-bold text-primary">{formatCurrency(totalRevenue)}</div>
             <div className="text-xs text-muted-foreground mt-1">{filteredOrders.length} pedidos</div>
+          </CardContent>
+        </Card>
+        <Card data-testid="card-prepared-products">
+          <CardContent className="p-6">
+            <div className="text-sm text-muted-foreground mb-1">Vendas Preparadas</div>
+            <div className="text-2xl font-bold text-amber-400">{formatCurrency(preparedProductsSales.totalRevenue)}</div>
+            <div className="text-xs text-muted-foreground mt-1">{preparedProductsSales.totalQuantitySold} unidades</div>
           </CardContent>
         </Card>
         <Card data-testid="card-avg-ticket">
