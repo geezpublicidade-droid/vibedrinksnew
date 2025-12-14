@@ -2070,7 +2070,8 @@ function ProductItem({
   onDelete,
   onToggleCombo,
   isTogglingCombo,
-  formatCurrency 
+  formatCurrency,
+  isPrepared,
 }: { 
   product: Product; 
   category: Category | undefined;
@@ -2079,6 +2080,7 @@ function ProductItem({
   onToggleCombo: (id: string, comboEligible: boolean) => void;
   isTogglingCombo: boolean;
   formatCurrency: (value: number | string) => string;
+  isPrepared: boolean;
 }) {
   return (
     <Card 
@@ -2124,12 +2126,14 @@ function ProductItem({
             <span className="text-muted-foreground text-xs block">Margem</span>
             <span className="font-medium">{product.profitMargin}%</span>
           </div>
-          <div className="bg-secondary/50 rounded-md p-2">
-            <span className="text-muted-foreground text-xs block">Estoque</span>
-            <span className={`font-medium ${product.stock <= 5 ? 'text-destructive' : product.stock <= 15 ? 'text-primary' : 'text-foreground'}`}>
-              {product.stock} un
-            </span>
-          </div>
+          {!isPrepared && (
+            <div className="bg-secondary/50 rounded-md p-2">
+              <span className="text-muted-foreground text-xs block">Estoque</span>
+              <span className={`font-medium ${product.stock <= 5 ? 'text-destructive' : product.stock <= 15 ? 'text-primary' : 'text-foreground'}`}>
+                {product.stock} un
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 mt-4">
@@ -2165,6 +2169,15 @@ function ProductItem({
   );
 }
 
+// Helper function to check if a category is for prepared products (no stock tracking)
+const PREPARED_CATEGORY_PATTERNS = ['copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'];
+
+function isPreparedCategory(categoryName: string): boolean {
+  return PREPARED_CATEGORY_PATTERNS.some(pattern => 
+    categoryName.toLowerCase().includes(pattern.toLowerCase())
+  );
+}
+
 function ProdutosTab() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -2174,6 +2187,7 @@ function ProdutosTab() {
   const [salePrice, setSalePrice] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [formCategoryId, setFormCategoryId] = useState<string>('');
   const [isImporting, setIsImporting] = useState(false);
   const [sortBy, setSortBy] = useState<'name-asc' | 'name-desc' | 'price-asc' | 'price-desc'>('name-asc');
   const [gridCols, setGridCols] = useState<1 | 2 | 4>(2);
@@ -2198,6 +2212,7 @@ function ProdutosTab() {
     setCostPrice(product?.costPrice || '');
     setProfitMargin(product?.profitMargin || '');
     setSalePrice(product?.salePrice || '');
+    setFormCategoryId(product?.categoryId || '');
     setIsDialogOpen(true);
   };
 
@@ -2208,9 +2223,14 @@ function ProdutosTab() {
       setCostPrice('');
       setProfitMargin('');
       setSalePrice('');
+      setFormCategoryId('');
     }
     setIsDialogOpen(open);
   };
+
+  // Check if the selected category in form is a prepared category (no stock)
+  const selectedFormCategory = categories.find(c => c.id === formCategoryId);
+  const isFormCategoryPrepared = selectedFormCategory ? isPreparedCategory(selectedFormCategory.name) : false;
 
   const handleCostPriceChange = (value: string) => {
     setCostPrice(value);
@@ -2490,6 +2510,10 @@ function ProdutosTab() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    
+    // For prepared products, stock is always 0 (no stock tracking)
+    const stockValue = isFormCategoryPrepared ? 0 : (parseInt(formData.get('stock') as string) || 0);
+    
     const data = {
       name: formData.get('name') as string,
       description: formData.get('description') as string,
@@ -2497,7 +2521,7 @@ function ProdutosTab() {
       costPrice: costPrice,
       profitMargin: profitMargin,
       salePrice: salePrice,
-      stock: parseInt(formData.get('stock') as string) || 0,
+      stock: stockValue,
       imageUrl: uploadedImageUrl || editingProduct?.imageUrl || null,
       productType: formData.get('productType') as string || null,
       isActive: true,
@@ -2573,7 +2597,7 @@ function ProdutosTab() {
               </div>
               <div>
                 <Label htmlFor="categoryId">Categoria</Label>
-                <Select name="categoryId" defaultValue={editingProduct?.categoryId}>
+                <Select name="categoryId" defaultValue={editingProduct?.categoryId} onValueChange={(v) => setFormCategoryId(v)}>
                   <SelectTrigger data-testid="select-product-category">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
@@ -2625,10 +2649,12 @@ function ProdutosTab() {
                   />
                 </div>
               </div>
-              <div>
-                <Label htmlFor="stock">Estoque</Label>
-                <Input id="stock" name="stock" type="number" defaultValue={editingProduct?.stock || 0} data-testid="input-product-stock" />
-              </div>
+              {!isFormCategoryPrepared && (
+                <div>
+                  <Label htmlFor="stock">Estoque</Label>
+                  <Input id="stock" name="stock" type="number" defaultValue={editingProduct?.stock || 0} data-testid="input-product-stock" />
+                </div>
+              )}
               <div>
                 <Label>Imagem do Produto</Label>
                 <ProductImageUploader
@@ -2785,6 +2811,7 @@ function ProdutosTab() {
               <div className={`grid gap-4 ${gridClass}`}>
                 {sortedProducts.map(product => {
                   const category = categories.find(c => c.id === product.categoryId);
+                  const isPrepared = category ? isPreparedCategory(category.name) : false;
                   return (
                     <ProductItem
                       key={product.id}
@@ -2795,6 +2822,7 @@ function ProdutosTab() {
                       onToggleCombo={(id, comboEligible) => toggleComboEligibleMutation.mutate({ id, comboEligible })}
                       isTogglingCombo={toggleComboEligibleMutation.isPending}
                       formatCurrency={formatCurrency}
+                      isPrepared={isPrepared}
                     />
                   );
                 })}
@@ -2808,7 +2836,9 @@ function ProdutosTab() {
                   className="hidden"
                   onChange={handleTableImageUpload}
                 />
-                {productsByCategory.map(({ category, products: catProducts }) => (
+                {productsByCategory.map(({ category, products: catProducts }) => {
+                  const isCategoryPrepared = isPreparedCategory(category.name);
+                  return (
                   <Card key={category.id} data-testid={`table-category-${category.id}`}>
                     <CardHeader className="py-3">
                       <CardTitle className="text-lg flex items-center gap-2">
@@ -2830,7 +2860,7 @@ function ProdutosTab() {
                               <TableHead className="w-24 text-right">Custo</TableHead>
                               <TableHead className="w-24 text-right">Margem</TableHead>
                               <TableHead className="w-24 text-right">Venda</TableHead>
-                              <TableHead className="w-20 text-right">Estoque</TableHead>
+                              {!isCategoryPrepared && <TableHead className="w-20 text-right">Estoque</TableHead>}
                               <TableHead className="w-16 text-center">Ativo</TableHead>
                               <TableHead className="w-16 text-center">Prep.</TableHead>
                               <TableHead className="w-16 text-center">Combo</TableHead>
@@ -2936,21 +2966,23 @@ function ProdutosTab() {
                                       <span className="text-sm font-bold text-primary">{formatCurrency(product.salePrice)}</span>
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-right">
-                                    {isEditing ? (
-                                      <Input
-                                        type="number"
-                                        value={editRowData?.stock || 0}
-                                        onChange={(e) => setEditRowData(prev => prev ? { ...prev, stock: parseInt(e.target.value) || 0 } : null)}
-                                        className="w-16 h-8 text-right text-sm"
-                                        data-testid={`input-stock-${product.id}`}
-                                      />
-                                    ) : (
-                                      <span className={`text-sm font-medium ${product.stock <= 5 ? 'text-destructive' : product.stock <= 15 ? 'text-primary' : ''}`}>
-                                        {product.stock}
-                                      </span>
-                                    )}
-                                  </TableCell>
+                                  {!isCategoryPrepared && (
+                                    <TableCell className="text-right">
+                                      {isEditing ? (
+                                        <Input
+                                          type="number"
+                                          value={editRowData?.stock || 0}
+                                          onChange={(e) => setEditRowData(prev => prev ? { ...prev, stock: parseInt(e.target.value) || 0 } : null)}
+                                          className="w-16 h-8 text-right text-sm"
+                                          data-testid={`input-stock-${product.id}`}
+                                        />
+                                      ) : (
+                                        <span className={`text-sm font-medium ${product.stock <= 5 ? 'text-destructive' : product.stock <= 15 ? 'text-primary' : ''}`}>
+                                          {product.stock}
+                                        </span>
+                                      )}
+                                    </TableCell>
+                                  )}
                                   <TableCell className="text-center">
                                     <Switch
                                       checked={product.isActive || false}
@@ -3027,7 +3059,8 @@ function ProdutosTab() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>
