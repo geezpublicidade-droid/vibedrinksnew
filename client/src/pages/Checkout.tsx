@@ -294,26 +294,22 @@ export default function Checkout() {
                   </div>
                 )}
 
-                {paymentMethod === 'pix' && settings?.pixKey && (
-                  <div className="mt-4 p-4 bg-secondary/50 rounded-lg border border-primary/10">
-                    <p className="text-sm text-muted-foreground mb-2">Chave PIX:</p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 bg-black/50 p-2 rounded text-primary text-sm overflow-x-auto">
-                        {settings.pixKey}
-                      </code>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-primary text-primary"
-                        onClick={copyPixKey}
-                        data-testid="button-copy-pix"
-                      >
-                        {pixCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      </Button>
+                {paymentMethod === 'pix' && (
+                  <div className="mt-4 p-4 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                        <QrCode className="h-5 w-5 text-amber-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-amber-400 mb-1">Pagamento PIX na Entrega</p>
+                        <p className="text-sm text-muted-foreground">
+                          O motoboy ira realizar a cobranca via QR Code na maquininha no momento da entrega.
+                        </p>
+                        <p className="text-xs text-amber-500/80 mt-2">
+                          Tenha o app do seu banco pronto para escanear o QR Code.
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Efetue o pagamento e aguarde a confirmacao
-                    </p>
                   </div>
                 )}
               </CardContent>
