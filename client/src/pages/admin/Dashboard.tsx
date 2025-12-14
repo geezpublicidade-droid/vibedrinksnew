@@ -2286,7 +2286,7 @@ function ProductItem({
 }
 
 // Helper function to check if a category is for prepared products (no stock tracking)
-const PREPARED_CATEGORY_PATTERNS = ['copos', 'doses', 'copão', 'drinks', 'caipirinhas', 'drinks especiais'];
+const PREPARED_CATEGORY_PATTERNS = ['copos', 'doses', 'copao', 'drinks', 'caipirinhas', 'drinks especiais', 'batidas'];
 
 function isPreparedCategory(categoryName: string): boolean {
   return PREPARED_CATEGORY_PATTERNS.some(pattern => 
