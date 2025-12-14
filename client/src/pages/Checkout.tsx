@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { MapPin, CreditCard, Banknote, QrCode, Truck, ArrowLeft, Loader2, Copy, Check, Gift } from 'lucide-react';
+import { MapPin, CreditCard, Banknote, QrCode, Truck, ArrowLeft, Loader2, Copy, Check, Gift, Clock } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/lib/cart';
 import { useAuth } from '@/lib/auth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { isBusinessHoursOpen, BUSINESS_HOURS } from '@/lib/business-hours';
 import type { Settings, PaymentMethod } from '@shared/schema';
 import { PAYMENT_METHOD_LABELS } from '@shared/schema';
 import { NEIGHBORHOODS, DELIVERY_ZONES, DELIVERY_FEE_WARNING, type DeliveryZone } from '@shared/delivery-zones';
@@ -116,6 +117,8 @@ export default function Checkout() {
     return null;
   }
 
+  const isOpen = isBusinessHoursOpen();
+
   return (
     <div className="min-h-screen bg-background py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -128,6 +131,21 @@ export default function Checkout() {
           <ArrowLeft className="h-5 w-5 mr-2" />
           Voltar ao cardapio
         </Button>
+
+        {!isOpen && (
+          <Card className="mb-6 border-red-500/30 bg-red-500/5">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3 text-red-400">
+                <Clock className="h-5 w-5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold">Estabelecimento Fechado</p>
+                  <p className="text-sm">Estamos abertos de 14h às 6h da manhã. Voltamos às 14:00!</p>
+                  <p className="text-xs mt-2">Entre em contato: <a href={BUSINESS_HOURS.WHATSAPP_LINK} className="text-green-400 hover:underline" target="_blank" rel="noopener noreferrer">WhatsApp {BUSINESS_HOURS.WHATSAPP}</a></p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <h1 className="font-serif text-3xl text-primary mb-8">Finalizar Pedido</h1>
 
@@ -378,10 +396,12 @@ export default function Checkout() {
                 <Button
                   className="w-full bg-primary text-primary-foreground font-semibold py-6"
                   onClick={() => createOrderMutation.mutate()}
-                  disabled={createOrderMutation.isPending}
+                  disabled={createOrderMutation.isPending || !isOpen}
                   data-testid="button-place-order"
                 >
-                  {createOrderMutation.isPending ? (
+                  {!isOpen ? (
+                    'Estabelecimento Fechado'
+                  ) : createOrderMutation.isPending ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
                     `Confirmar Pedido - ${formatPrice(total)}`

@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { motion } from 'framer-motion';
-import { Phone, Clock, MapPin, Instagram, MessageCircle } from 'lucide-react';
+import { Clock, MapPin, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
 import { HeroSection } from '@/components/home/HeroSection';
 import { BannerCarousel } from '@/components/home/BannerCarousel';
 import { CategoryCarousel } from '@/components/home/CategoryCarousel';
@@ -138,82 +139,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="bg-black border-t border-primary/20">
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          <div className="grid md:grid-cols-4 gap-8 mb-12">
-            <div className="md:col-span-2">
-              <img src={logoImage} alt="Vibe Drinks" className="h-12 mb-4" />
-              <p className="text-muted-foreground text-sm max-w-md mb-6">
-                A melhor adega e drinkeria de Sao Paulo. Bebidas premium com entrega rapida para sua casa ou evento.
-              </p>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full border-primary/30 text-primary hover:bg-primary/10"
-                >
-                  <Instagram className="h-5 w-5" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full border-primary/30 text-primary hover:bg-primary/10"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Links Rapidos</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#products-section" className="text-muted-foreground hover:text-primary transition-colors text-sm">
-                    Cardapio
-                  </a>
-                </li>
-                <li>
-                  <a href="/login" className="text-muted-foreground hover:text-primary transition-colors text-sm">
-                    Minha Conta
-                  </a>
-                </li>
-                <li>
-                  <a href="/pedidos" className="text-muted-foreground hover:text-primary transition-colors text-sm">
-                    Meus Pedidos
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Contato</h4>
-              <ul className="space-y-3">
-                <li className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <Phone className="h-4 w-4 text-primary" />
-                  (11) 99999-9999
-                </li>
-                <li className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <Clock className="h-4 w-4 text-primary" />
-                  Seg-Dom: 18h - 23h
-                </li>
-                <li className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <MapPin className="h-4 w-4 text-primary" />
-                  Grande Sao Paulo
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-primary/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-muted-foreground text-xs">
-              2024 Vibe Drinks. Todos os direitos reservados.
-            </p>
-            <p className="text-muted-foreground text-xs">
-              Proibida a venda para menores de 18 anos
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       <FloatingCartButton onClick={() => setCartOpen(true)} />
       <CartSheet open={cartOpen} onOpenChange={setCartOpen} />
