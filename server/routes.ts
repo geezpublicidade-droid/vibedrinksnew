@@ -1335,7 +1335,7 @@ export async function registerRoutes(
         outOfStockCount: stockProducts.filter(p => p.stock === 0 && p.isActive).length,
       };
       
-      res.json({ summary, products: productDetails });
+      res.json({ summary, products: stockProducts });
     } catch (error) {
       console.error("Error generating stock report:", error);
       res.status(500).json({ error: "Failed to generate stock report" });
