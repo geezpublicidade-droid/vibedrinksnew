@@ -56,7 +56,6 @@ export function ComboModal({ open, onOpenChange }: ComboModalProps) {
     const category = categories.find(c => c.id === selectedCategory);
     if (!category) return [];
     return products.filter(p => 
-      p.comboEligible && 
       p.isActive && 
       p.stock > 0 && 
       p.categoryId === category.id

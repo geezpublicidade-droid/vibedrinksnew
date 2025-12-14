@@ -38,17 +38,22 @@ export function SpecialDrinksModal({ open, onOpenChange }: SpecialDrinksModalPro
 
   const specialDrinks = products.filter(p => {
     if (!p.isActive) return false;
-    if (p.stock <= 0) return false;
     
     const inSpecialCategory = specialCategories.some(c => c.id === p.categoryId);
+    const matchesSelectedCategory = !selectedCategory || p.categoryId === selectedCategory;
+    
+    // If a specific category is selected, only show products from that category
+    if (selectedCategory) {
+      return inSpecialCategory && matchesSelectedCategory && p.stock > 0;
+    }
+    
+    // If no category selected, show all special drinks with stock
     const hasSpecialKeyword = specialDrinkKeywords.some(keyword => 
       p.name.toLowerCase().includes(keyword)
     );
     const isComboEligible = p.comboEligible;
     
-    const matchesSelectedCategory = !selectedCategory || p.categoryId === selectedCategory;
-    
-    return (inSpecialCategory || hasSpecialKeyword || isComboEligible) && matchesSelectedCategory;
+    return (inSpecialCategory || hasSpecialKeyword || isComboEligible) && p.stock > 0;
   });
 
   const formatPrice = (price: string | number) => {
