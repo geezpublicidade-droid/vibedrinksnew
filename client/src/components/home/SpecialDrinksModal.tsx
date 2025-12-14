@@ -52,7 +52,7 @@ export function SpecialDrinksModal({ open, onOpenChange }: SpecialDrinksModalPro
   const specialDrinks = products.filter(p => {
     if (!p.isActive) return false;
     if (!selectedCategory) return false;
-    return p.categoryId === selectedCategory && p.stock > 0;
+    return p.categoryId === selectedCategory;
   });
 
   const formatPrice = (price: string | number) => {
